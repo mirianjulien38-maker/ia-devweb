@@ -1,0 +1,17 @@
+{
+  "users": [
+    {
+      "id": "admin-default",
+      "email": "horlandobe@gmail.com",
+      "name": "Admin Horlando",
+      "password": "Rakoto12//",
+      "credits": 99999,
+      "tokensUsed": 0,
+      "bonusClaimsCount": 0,
+      "createdAt": "2026-07-17T22:24:26.553Z"
+    }
+  ],
+  "geminiKeys": [],
+  "payments": [],
+  "currentKeyIndex": 0
+}

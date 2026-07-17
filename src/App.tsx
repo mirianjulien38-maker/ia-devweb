@@ -5,8 +5,13 @@ import ChatWorkspace from "./components/ChatWorkspace";
 import PreviewArea from "./components/PreviewArea";
 import DatabaseWizardModal from "./components/DatabaseWizardModal";
 import DatabaseSettingsModal from "./components/DatabaseSettingsModal";
+import AuthScreen from "./components/AuthScreen";
+import RechargeModal from "./components/RechargeModal";
+import AdminModal from "./components/AdminModal";
 import { WebSiteProject, ChatMessage } from "./types";
-import { Sparkles, Code2, AlertTriangle, Layers, X, Trash2, ArrowRight, Eye, Menu, SidebarOpen, SidebarClose } from "lucide-react";
+import { Language, translations } from "./translations";
+import FaqModal from "./components/FaqModal";
+import { Sparkles, Code2, AlertTriangle, Layers, X, Trash2, ArrowRight, Eye, Menu, SidebarOpen, SidebarClose, Coins, ShieldCheck, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { DEFAULT_WEBSITE_CODE } from "./defaultWebsite";
 
@@ -30,11 +35,29 @@ export default function App() {
   const [mobileTab, setMobileTab] = useState<"builder" | "preview">("builder");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // Load from local storage
+  // Authentication & Credits State
+  const [user, setUser] = useState<{
+    id: string;
+    email: string;
+    name: string;
+    credits: number;
+    tokensUsed: number;
+    bonusClaimsCount: number;
+    isAdmin: boolean;
+  } | null>(null);
+  
+  const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [language, setLanguage] = useState<Language>("mg");
+  const [showFaqModal, setShowFaqModal] = useState(false);
+
+  // Load from local storage on mount
   useEffect(() => {
     const savedProjects = localStorage.getItem("devweb-ia-projects");
     const savedCurrent = localStorage.getItem("devweb-ia-current");
     const savedChat = localStorage.getItem("devweb-ia-chat");
+    const savedUser = localStorage.getItem("devweb-ia-user");
+    const savedLang = localStorage.getItem("devweb-ia-lang");
 
     if (savedProjects) {
       setProjects(JSON.parse(savedProjects));
@@ -45,9 +68,41 @@ export default function App() {
     if (savedChat) {
       setChatHistory(JSON.parse(savedChat));
     }
+    if (savedLang) {
+      setLanguage(savedLang as Language);
+    }
+    if (savedUser) {
+      const parsedUser = JSON.parse(savedUser);
+      setUser(parsedUser);
+      // Fetch latest user status in background to keep credits in sync
+      syncUserStatus(parsedUser.email);
+    }
   }, []);
 
-  // Save to local storage
+  const handleLanguageChange = (lang: Language) => {
+    setLanguage(lang);
+    localStorage.setItem("devweb-ia-lang", lang);
+  };
+
+  // Sync user status from server to keep credits, token usage in sync
+  const syncUserStatus = async (email: string) => {
+    try {
+      const response = await fetch("/api/user-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setUser(data.user);
+        localStorage.setItem("devweb-ia-user", JSON.stringify(data.user));
+      }
+    } catch (err) {
+      console.error("Tsy nahomby ny fampifanarahana ny mombamomba:", err);
+    }
+  };
+
+  // Save to local storage helpers
   const saveProjectsToStorage = (updatedProjects: WebSiteProject[]) => {
     localStorage.setItem("devweb-ia-projects", JSON.stringify(updatedProjects));
     setProjects(updatedProjects);
@@ -76,6 +131,19 @@ export default function App() {
       localStorage.setItem("devweb-ia-projects", JSON.stringify(updatedProjs));
       setProjects(updatedProjs);
     }
+  };
+
+  // Auth screen login/signup trigger
+  const handleAuthSuccess = (authenticatedUser: any) => {
+    setUser(authenticatedUser);
+    localStorage.setItem("devweb-ia-user", JSON.stringify(authenticatedUser));
+    // Pull stats in case they logged in
+    syncUserStatus(authenticatedUser.email);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem("devweb-ia-user");
   };
 
   const handleApplyDatabaseCode = (code: string, filename: string) => {
@@ -113,6 +181,17 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
 
   // Generate / Refine Website
   const handleGenerateSite = async (userPrompt: string, refine: boolean = false) => {
+    if (!user) {
+      setErrorMessage("Mila miditra (connexion) ianao mialoha ny hamoronana tranonkala.");
+      return;
+    }
+
+    if (user.credits <= 0) {
+      setErrorMessage("Lany ny fahana (credit) anao. Azafady, mividiana fahana fanampiny vao afaka manohy.");
+      setShowRechargeModal(true);
+      return;
+    }
+
     if (isGenerating) return;
     setIsGenerating(true);
     setErrorMessage(null);
@@ -139,13 +218,25 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
         body: JSON.stringify({
           prompt: userPrompt,
           existingCode: refine && currentProject ? currentProject.code : undefined,
+          userEmail: user.email
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
+        // If it's a payment/credit exhaust error, automatically pop open the Recharge Modal!
+        if (response.status === 402 || data.isCreditsExhausted) {
+          setShowRechargeModal(true);
+        }
         throw new Error(data.error || "Nisy olana teo amin'ny famoronana ny tranonkala.");
+      }
+
+      // Update user credits in state & storage
+      if (data.userCredits !== undefined) {
+        const updatedUser = { ...user, credits: data.userCredits };
+        setUser(updatedUser);
+        localStorage.setItem("devweb-ia-user", JSON.stringify(updatedUser));
       }
 
       // Add to AI chat response
@@ -158,8 +249,8 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
         id: aiMessageId,
         sender: "ai",
         text: refine 
-          ? `Nohavaozina soa aman-tsara ny tranonkalanao araka ny torolalana: "${userPrompt}". Hitanao ao amin'ny preview ny vokatry ny fanovana.`
-          : `Tafajoro soa aman-tsara ny tranonkalanao! "${derivedName}". Afaka telecharger-nao mivantana ho fichier HTML io na sivaninao eto ihany koa.`,
+          ? `Nohavaozina soa aman-tsara ny tranonkalanao araka ny torolalana: "${userPrompt}". Hitanao ao amin'ny preview ny vokatry ny fanovana. (Nandany ${data.creditCost} credits)`
+          : `Tafajoro soa aman-tsara ny tranonkalanao! "${derivedName}". Afaka telecharger-nao mivantana ho fichier HTML io na sivaninao eto ihany koa. (Nandany ${data.creditCost} credits)`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         code: data.code
       };
@@ -275,14 +366,25 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
     saveCurrentProjectToStorage(selectedProj);
   };
 
+  // If user is not logged in, force the Auth screen!
+  if (!user) {
+    return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
+  }
+
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden select-none">
-      {/* Header */}
+      
+      {/* Header with auth indicators, credits, and admin buttons */}
       <Header
         currentProjectName={currentProject ? currentProject.name : ""}
         isGenerating={isGenerating}
         onNewProject={handleNewProject}
         onOpenDatabaseWizard={() => setShowDatabaseWizard(true)}
+        user={user}
+        onOpenRecharge={() => setShowRechargeModal(true)}
+        onOpenAdmin={() => setShowAdminModal(true)}
+        onLogout={handleLogout}
+        language={language}
       />
 
       {/* Floating History button with Sidebar Toggle */}
@@ -291,14 +393,14 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-all mr-2 flex items-center justify-center border border-slate-800"
-            title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            title={isSidebarOpen ? translations[language].collapseSidebar : translations[language].expandSidebar}
           >
             {isSidebarOpen ? <SidebarClose className="w-4 h-4" /> : <SidebarOpen className="w-4 h-4" />}
           </button>
           <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-          <span>Lohahevitra miasa:</span>
+          <span>{translations[language].currentProject}</span>
           <span className="text-slate-200 font-semibold ml-1">
-            {currentProject ? currentProject.name : "Tranonkala vaovao (Manorata prompt)"}
+            {currentProject ? currentProject.name : translations[language].activeProject}
           </span>
         </div>
 
@@ -307,7 +409,7 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
           className="flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 transition-colors font-semibold py-1 px-3 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 rounded-xl"
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>Ireo Tranonkala Voaforona ({projects.length})</span>
+          <span>{language === "mg" ? "Ireo Tranonkala Voaforona" : language === "fr" ? "Projets créés" : "Built Websites"} ({projects.length})</span>
         </button>
       </div>
 
@@ -322,7 +424,7 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          Mpamorona (Builder)
+          {translations[language].builderTab}
         </button>
         <button
           onClick={() => setMobileTab("preview")}
@@ -333,7 +435,7 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
           }`}
         >
           <Eye className="w-4 h-4" />
-          Sary Mivantana (Preview)
+          {translations[language].previewTab}
         </button>
       </div>
 
@@ -350,6 +452,11 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
           onClearHistory={handleClearHistory}
           isOpen={isSidebarOpen}
           onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+          user={user}
+          onOpenRecharge={() => setShowRechargeModal(true)}
+          language={language}
+          onLanguageChange={handleLanguageChange}
+          onOpenFaq={() => setShowFaqModal(true)}
         />
 
         {/* Mobile/Tablet Overlaid Sidebar */}
@@ -366,6 +473,11 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
                 onClearHistory={handleClearHistory}
                 isOpen={true}
                 onToggle={() => setIsSidebarOpen(false)}
+                user={user}
+                onOpenRecharge={() => setShowRechargeModal(true)}
+                language={language}
+                onLanguageChange={handleLanguageChange}
+                onOpenFaq={() => setShowFaqModal(true)}
               />
             </div>
             <div 
@@ -436,10 +548,29 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
         onClose={() => setShowDatabaseSettings(false)}
       />
 
+      {/* Credit / Recharge Modal */}
+      <RechargeModal
+        isOpen={showRechargeModal}
+        onClose={() => setShowRechargeModal(false)}
+        user={user}
+        onUserUpdate={(updatedUser) => {
+          setUser(updatedUser);
+          localStorage.setItem("devweb-ia-user", JSON.stringify(updatedUser));
+        }}
+      />
+
+      {/* Admin Dashboard Modal */}
+      <AdminModal
+        isOpen={showAdminModal}
+        onClose={() => setShowAdminModal(false)}
+        adminEmail={user.email}
+        onTriggerUserSync={() => syncUserStatus(user.email)}
+      />
+
       {/* Project Manager Modal */}
       <AnimatePresence>
         {showProjectsModal && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 font-sans text-slate-100">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -461,7 +592,7 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
 
               <div className="p-6 overflow-y-auto flex-1 space-y-3">
                 {projects.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500 font-sans">
+                  <div className="text-center py-12 text-slate-500">
                     <Code2 className="w-12 h-12 text-slate-800 mx-auto mb-3" />
                     <p className="text-sm font-medium">Mbola tsy nisy tranonkala voaforona.</p>
                     <p className="text-xs mt-1 text-slate-600">
@@ -490,7 +621,7 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
                             </span>
                           )}
                         </div>
-                        <p className="text-slate-400 text-xs truncate max-w-md mt-1 italic font-sans">
+                        <p className="text-slate-400 text-xs truncate max-w-md mt-1 italic">
                           "{proj.prompt}"
                         </p>
                         <span className="text-[10px] font-mono text-slate-500 mt-2 block">
@@ -518,6 +649,13 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
           </div>
         )}
       </AnimatePresence>
+
+      {/* FAQ & Professional Documentation Modal */}
+      <FaqModal
+        isOpen={showFaqModal}
+        onClose={() => setShowFaqModal(false)}
+        language={language}
+      />
     </div>
   );
 }
