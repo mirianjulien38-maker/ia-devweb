@@ -8,7 +8,8 @@ import { readDb, writeDb, rotateGeminiKey, User, PaymentClaim } from "./server-d
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+// Bind to the dynamic PORT specified by Render in production, otherwise use 3000 for AI Studio containers
+const PORT = process.env.RENDER === "true" && process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
 app.use(express.json({ limit: "15mb" }));
 
@@ -499,7 +500,10 @@ Azafady, ovay ity kaody ity araka ny fangatahana etsy ambony. Avereno ny kaody H
 
 // Serve frontend with Vite in dev, static files in prod
 async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
+  // Render environment is always considered production, regardless of NODE_ENV
+  const isProduction = process.env.NODE_ENV === "production" || process.env.RENDER === "true";
+
+  if (!isProduction) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
