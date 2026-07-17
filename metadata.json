@@ -1,0 +1,8 @@
+{
+  "name": "DEVWEB IA",
+  "description": "Mpamorona tranonkala matihanina mampiasa AI miaraka amin'ny preview mivantana sy fampidinana code.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
