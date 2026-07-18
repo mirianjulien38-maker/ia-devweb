@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import JSZip from "jszip";
 import { 
   Monitor, Tablet, Smartphone, Download, 
   Copy, Check, ExternalLink, RefreshCw, 
@@ -102,6 +103,49 @@ export default function PreviewArea({ code, projectName, isGenerating }: Preview
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadZip = async () => {
+    try {
+      const zip = new JSZip();
+      const folderName = projectName.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "tranonkala-ai";
+      
+      // Add index.html
+      zip.file("index.html", code);
+      
+      // Add informational README.txt
+      const readmeContent = `=====================================================
+ ${projectName.toUpperCase()} - Tranonkala Noforonin'ny DEVWEBIA
+=====================================================
+
+Miarahaba! Ity no tranonkala novoronin'ny mpanampy AI ao amin'ny DEVWEBIA.
+Noforonina tamin'ny alalan'ny teknolojia maoderina:
+- HTML5 & CSS3
+- Tailwind CSS (ho an'ny endrika sy ravaka tsara tarehy)
+- JavaScript (ho an'ny "interactivité" sy ny finday)
+
+FOMBA FAMPIASANA AZY:
+---------------------
+1. Sokafy fotsiny ny rakitra "index.html" mivantana amin'ny navigateur-nao (Chrome, Firefox, Safari, Edge, sns.).
+2. Tsy mila "setup" na server manokana izany satria feno (self-contained) ao anatin'ity rakitra ity avokoa ny rafitra rehetra.
+
+MISAOTRA SY MIRARY SOA AMIN'NY FAMPIASANA NY DEVWEBIA!
+`;
+      zip.file("README.txt", readmeContent);
+      
+      // Generate Zip
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${folderName}.zip`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Fahadisoana rehefa nanao zip:", err);
+    }
   };
 
   const handleOpenNewTab = () => {
@@ -213,11 +257,20 @@ export default function PreviewArea({ code, projectName, isGenerating }: Preview
 
             <button
               onClick={handleDownloadCode}
-              className="flex items-center gap-1.5 bg-sky-500 hover:bg-sky-400 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-sky-500/10 hover:shadow-sky-500/20 active:scale-95"
+              className="flex items-center gap-1.5 bg-sky-500 hover:bg-sky-400 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-sky-500/10 hover:shadow-sky-500/20 active:scale-95"
               title="Hampidina ny fichier ho an'ny fitaovanao"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Telecharger (HTML)</span>
+              <span>HTML</span>
+            </button>
+
+            <button
+              onClick={handleDownloadZip}
+              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/10 hover:shadow-emerald-600/20 active:scale-95"
+              title="Hampidina ny tranonkala amin'ny endrika ZIP"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>ZIP</span>
             </button>
 
             {activeTab === "preview" && (

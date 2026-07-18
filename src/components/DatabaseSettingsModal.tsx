@@ -9,9 +9,10 @@ interface DatabaseSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfigsChange?: (configs: SavedDatabaseConfig[]) => void;
+  onSaveSuccess?: (savedConfig: SavedDatabaseConfig) => void;
 }
 
-export default function DatabaseSettingsModal({ isOpen, onClose, onConfigsChange }: DatabaseSettingsModalProps) {
+export default function DatabaseSettingsModal({ isOpen, onClose, onConfigsChange, onSaveSuccess }: DatabaseSettingsModalProps) {
   const [configs, setConfigs] = useState<SavedDatabaseConfig[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [dbType, setDbType] = useState<"Firebase" | "Supabase">("Supabase");
@@ -81,6 +82,13 @@ export default function DatabaseSettingsModal({ isOpen, onClose, onConfigsChange
 
     const updated = [...configs, newConfig];
     saveConfigs(updated);
+
+    // Dispatch custom event for automatic chat resume
+    window.dispatchEvent(new CustomEvent("devweb-db-saved", { detail: newConfig }));
+
+    if (onSaveSuccess) {
+      onSaveSuccess(newConfig);
+    }
 
     // Reset Form
     setProjectName("");

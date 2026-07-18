@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { 
-  X, Database, HelpCircle, Check, ArrowRight, ArrowLeft, 
-  Sparkles, ShieldCheck, Server, AlertCircle, Plus, Info
+  X, Database, Check, ArrowRight, Server, AlertCircle, Plus, Info 
 } from "lucide-react";
 import { SavedDatabaseConfig } from "../types";
 
 interface PromptDatabaseWizardProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenSettings: () => void;
   onSubmit: (dbChoice: {
     useDb: boolean;
     dbType?: "Firebase" | "Supabase";
@@ -15,64 +15,62 @@ interface PromptDatabaseWizardProps {
   }) => void;
 }
 
-export default function PromptDatabaseWizard({ isOpen, onClose, onSubmit }: PromptDatabaseWizardProps) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [useDb, setUseDb] = useState<boolean | null>(null);
-  const [dbType, setDbType] = useState<"Firebase" | "Supabase" | null>(null);
+export default function PromptDatabaseWizard({ 
+  isOpen, 
+  onClose, 
+  onOpenSettings, 
+  onSubmit 
+}: PromptDatabaseWizardProps) {
   const [savedConfigs, setSavedConfigs] = useState<SavedDatabaseConfig[]>([]);
-  const [selectedConfigId, setSelectedConfigId] = useState<string>("");
+  const [selectedId, setSelectedId] = useState<string>("none"); // "none" means static/local storage
 
   useEffect(() => {
     if (isOpen) {
-      setStep(1);
-      setUseDb(null);
-      setDbType(null);
-      setSelectedConfigId("");
-      
-      // Load saved configurations
+      setSelectedId("none");
+      // Load saved configurations from localStorage
       const saved = localStorage.getItem("devweb-ia-db-configs");
       if (saved) {
         try {
-          setSavedConfigs(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          setSavedConfigs(parsed);
+          // If there is at least one config, pre-select the first one
+          if (parsed.length > 0) {
+            setSelectedId(parsed[0].id);
+          }
         } catch (e) {
           console.error(e);
         }
+      } else {
+        setSavedConfigs([]);
       }
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  // Filter configs based on selected db type
-  const filteredConfigs = savedConfigs.filter(c => c.type === dbType);
-
-  const handleStep1 = (choice: boolean) => {
-    setUseDb(choice);
-    if (!choice) {
-      // If "no database", directly submit
+  const handleContinue = () => {
+    if (selectedId === "none") {
       onSubmit({ useDb: false });
     } else {
-      setStep(2);
+      const config = savedConfigs.find(c => c.id === selectedId);
+      if (config) {
+        onSubmit({
+          useDb: true,
+          dbType: config.type,
+          config: config
+        });
+      } else {
+        onSubmit({ useDb: false });
+      }
     }
   };
 
-  const handleStep2 = (type: "Firebase" | "Supabase") => {
-    setDbType(type);
-    setStep(3);
+  const handleAddDatabase = () => {
+    onClose();
+    onOpenSettings();
   };
 
-  const handleStep3Submit = () => {
-    if (!selectedConfigId) {
-      alert("Azafady, misafidiana tetikasa database iray na ampidiro ao amin'ny Parameters aloha!");
-      return;
-    }
-    const config = savedConfigs.find(c => c.id === selectedConfigId);
-    onSubmit({
-      useDb: true,
-      dbType: dbType || undefined,
-      config: config
-    });
-  };
+  const hasSavedConfigs = savedConfigs.length > 0;
 
   return (
     <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
@@ -82,7 +80,9 @@ export default function PromptDatabaseWizard({ isOpen, onClose, onSubmit }: Prom
         <div className="p-5 border-b border-slate-800/80 bg-slate-900/40 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Database className="w-5 h-5 text-sky-400" />
-            <h4 className="text-white font-bold text-sm uppercase tracking-wide">Safidy Database</h4>
+            <h4 className="text-white font-bold text-sm uppercase tracking-wide">
+              {hasSavedConfigs ? "Safidio ny Database Hampiasaina" : "Mbola tsy misy Database!"}
+            </h4>
           </div>
           <button 
             onClick={onClose}
@@ -93,169 +93,129 @@ export default function PromptDatabaseWizard({ isOpen, onClose, onSubmit }: Prom
         </div>
 
         {/* Step Body */}
-        <div className="p-6">
-          
-          {/* STEP 1: Use Database or Not */}
-          {step === 1 && (
-            <div className="space-y-5 animate-slideUp">
-              <div className="text-center space-y-2">
-                <HelpCircle className="w-12 h-12 text-sky-400 mx-auto mb-1 animate-pulse" />
-                <h5 className="text-white font-bold text-base leading-tight">Hampiasa Database ve ianao?</h5>
-                <p className="text-slate-400 text-xs leading-relaxed max-w-xs mx-auto">
-                  Te hampiasa base de données Firebase na Supabase ve ianao mba hitahirizana ny angon-drakitry ny mpitsidika?
+        <div className="p-6 flex-1 overflow-y-auto max-h-[400px] space-y-5">
+          {hasSavedConfigs ? (
+            /* CASE 1: Configs already registered/saved */
+            <div className="space-y-4 animate-slideUp">
+              <p className="text-slate-400 text-xs leading-relaxed">
+                Misy base de données voatahiry efa hita ao amin'ny mombamomba anao. Misafidiana (cocher) iray tianao hampiasaina na fidio ny tsy hampiasa database:
+              </p>
+
+              <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+                {savedConfigs.map((cfg) => {
+                  const isSelected = selectedId === cfg.id;
+                  return (
+                    <button
+                      key={cfg.id}
+                      onClick={() => setSelectedId(cfg.id)}
+                      className={`w-full p-3.5 rounded-2xl text-left transition-all border flex items-center justify-between ${
+                        isSelected
+                          ? "bg-sky-500/10 border-sky-500 shadow-md shadow-sky-500/5"
+                          : "bg-slate-950/40 border-slate-850 hover:border-slate-800"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-1.5 rounded-lg text-[10px] font-extrabold ${
+                          cfg.type === "Firebase" 
+                            ? "bg-amber-500/10 text-amber-500" 
+                            : "bg-emerald-500/10 text-emerald-400"
+                        }`}>
+                          {cfg.type === "Firebase" ? "Firebase" : "Supabase"}
+                        </div>
+                        <div>
+                          <h6 className="text-white font-bold text-xs">{cfg.projectName}</h6>
+                          <p className="text-slate-500 text-[9px] mt-0.5 font-mono truncate max-w-[180px]">
+                            {cfg.type === "Supabase" ? cfg.config.url : cfg.config.projectId}
+                          </p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                        isSelected 
+                          ? "border-sky-500 bg-sky-500 text-white" 
+                          : "border-slate-700 bg-slate-900"
+                      }`}>
+                        {isSelected && <Check className="w-3.5 h-3.5" />}
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {/* Option to NOT use a database (Static / Local Storage fotsiny) */}
+                <button
+                  onClick={() => setSelectedId("none")}
+                  className={`w-full p-3.5 rounded-2xl text-left transition-all border flex items-center justify-between ${
+                    selectedId === "none"
+                      ? "bg-slate-800 border-slate-700 shadow-md"
+                      : "bg-slate-950/40 border-slate-850 hover:border-slate-800"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="bg-slate-800 border border-slate-700 text-slate-400 p-1.5 rounded-lg text-[10px] font-bold">
+                      Local
+                    </div>
+                    <div>
+                      <h6 className="text-slate-300 font-bold text-xs">Tsy hampiasa base de données</h6>
+                      <p className="text-slate-500 text-[9px] mt-0.5">
+                        Mampiasa Local Storage na ho static fotsiny ny tranonkala.
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                    selectedId === "none"
+                      ? "border-slate-400 bg-slate-400 text-slate-950"
+                      : "border-slate-700 bg-slate-900"
+                  }`}>
+                    {selectedId === "none" && <Check className="w-3.5 h-3.5" />}
+                  </div>
+                </button>
+              </div>
+
+              {/* Continue Button */}
+              <button
+                onClick={handleContinue}
+                className="w-full py-3.5 mt-2 rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-sky-500/10 active:scale-95"
+              >
+                <span>Tohizana sy hamoaka kaody</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            /* CASE 2: No configs registered yet */
+            <div className="space-y-5 text-center animate-slideUp">
+              <div className="w-14 h-14 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-amber-500/5">
+                <AlertCircle className="w-7 h-7" />
+              </div>
+              
+              <div className="space-y-1.5">
+                <h5 className="text-white font-extrabold text-sm leading-snug">Mila mampiditra Database ve ianao?</h5>
+                <p className="text-slate-400 text-xs leading-relaxed max-w-sm mx-auto">
+                  Mba ahafahan'ny IA mampifandray mivantana ny tranonkalanao amin'ny database (Firebase/Supabase), ampidiro aloha ny fikirakirana.
                 </p>
               </div>
 
-              <div className="grid gap-3 pt-2">
+              <div className="grid gap-2.5 pt-2">
+                {/* Redirect Option */}
                 <button
-                  onClick={() => handleStep1(true)}
-                  className="w-full p-4 rounded-2xl bg-gradient-to-r from-sky-500/10 to-indigo-500/10 border border-sky-500/30 hover:border-sky-500 text-left transition-all hover:scale-[1.01] active:scale-[0.99] group"
+                  onClick={handleAddDatabase}
+                  className="w-full p-4 rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs transition-all shadow-lg hover:shadow-sky-500/20 active:scale-[0.99] flex items-center justify-between group"
                 >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h6 className="text-white font-bold text-xs">Eny, hampiasa Database aho</h6>
-                      <p className="text-slate-400 text-[10px] mt-1 font-sans">
-                        Mety amin'ny fitahirizana hafatra, fidirana, na fivarotana vokatra.
-                      </p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-sky-400 group-hover:translate-x-1 transition-transform" />
-                  </div>
+                  <span className="flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    <span>Hampiditra (Configure Database)</span>
+                  </span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </button>
 
+                {/* Continue Offline Option */}
                 <button
-                  onClick={() => handleStep1(false)}
-                  className="w-full p-4 rounded-2xl bg-slate-950/40 border border-slate-850 hover:border-slate-700 text-left transition-all hover:scale-[1.01] active:scale-[0.99] group"
+                  onClick={() => onSubmit({ useDb: false })}
+                  className="w-full p-4 rounded-2xl bg-slate-950/50 border border-slate-850 hover:border-slate-800 text-slate-400 hover:text-slate-200 font-bold text-xs transition-all active:scale-[0.99] flex items-center justify-center gap-2"
                 >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h6 className="text-slate-300 font-bold text-xs">Tsy mila (Static fotsiny)</h6>
-                      <p className="text-slate-500 text-[10px] mt-1 font-sans">
-                        Tsy mila fitehirizana data maharitra, na mampiasa Local Storage fotsiny.
-                      </p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-slate-500 group-hover:translate-x-1 transition-transform" />
-                  </div>
+                  <span>Aoka ihany (Mampiasa Local Storage)</span>
                 </button>
               </div>
             </div>
           )}
-
-          {/* STEP 2: Choose Firebase or Supabase */}
-          {step === 2 && (
-            <div className="space-y-5 animate-slideUp">
-              <div className="flex items-center gap-1.5 text-slate-400 text-xs font-sans">
-                <button onClick={() => setStep(1)} className="hover:text-white flex items-center gap-1 transition-colors">
-                  <ArrowLeft className="w-3.5 h-3.5" /> Miverina
-                </button>
-              </div>
-
-              <div className="text-center space-y-1.5">
-                <h5 className="text-white font-bold text-base">Inona no Database hampiasaina?</h5>
-                <p className="text-slate-400 text-xs">Fidio ny rafitra tianao hampifandraisina amin'ny tetikasa</p>
-              </div>
-
-              <div className="grid gap-3 pt-2">
-                <button
-                  onClick={() => handleStep2("Supabase")}
-                  className="w-full p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 hover:border-emerald-500 text-left transition-all hover:scale-[1.01] active:scale-[0.99] group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h6 className="text-emerald-400 font-extrabold text-xs">Supabase (PostgreSQL)</h6>
-                      <p className="text-slate-400 text-[10px] mt-1 font-sans">Mora ampiasaina amin'ny alàlan'ny SQL sy API tsotra.</p>
-                    </div>
-                    <div className="bg-emerald-500/10 text-emerald-400 p-1.5 rounded-lg">
-                      <Check className="w-3.5 h-3.5" />
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleStep2("Firebase")}
-                  className="w-full p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 hover:border-amber-500 text-left transition-all hover:scale-[1.01] active:scale-[0.99] group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h6 className="text-amber-500 font-extrabold text-xs">Google Firebase</h6>
-                      <p className="text-slate-400 text-[10px] mt-1 font-sans">Mety indrindra amin'ny Realtime Database sy Authentications.</p>
-                    </div>
-                    <div className="bg-amber-500/10 text-amber-500 p-1.5 rounded-lg">
-                      <Check className="w-3.5 h-3.5" />
-                    </div>
-                  </div>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: Choose Stored Project Name */}
-          {step === 3 && (
-            <div className="space-y-4 animate-slideUp">
-              <div className="flex items-center gap-1.5 text-slate-400 text-xs font-sans">
-                <button onClick={() => setStep(2)} className="hover:text-white flex items-center gap-1 transition-colors">
-                  <ArrowLeft className="w-3.5 h-3.5" /> Miverina
-                </button>
-              </div>
-
-              <div>
-                <h5 className="text-white font-bold text-base">Misafidiana Tetikasa {dbType}</h5>
-                <p className="text-slate-400 text-xs mt-1">Safidio ny fikirakirana voatahiry hampiasain'ny IA</p>
-              </div>
-
-              {filteredConfigs.length === 0 ? (
-                <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-850 space-y-3.5">
-                  <div className="flex gap-2.5 items-start">
-                    <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                    <div>
-                      <h6 className="text-white font-bold text-xs">Tsy misy fikirakirana voatahiry</h6>
-                      <p className="text-slate-400 text-[11px] leading-relaxed mt-1">
-                        Mba hampiasana ny database {dbType}, tsindrio aloha ny <strong>Parameters (Settings)</strong> eo amin'ny farany ambony amin'ny sidebar ary ampidiro ny credentials-nao.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <label className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Ny Tetikasanao:</label>
-                    <select
-                      value={selectedConfigId}
-                      onChange={(e) => setSelectedConfigId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-850 text-slate-100 rounded-xl px-4 py-3 text-xs focus:border-sky-500 outline-none transition-all"
-                    >
-                      <option value="">-- Safidio ny tetikasa database --</option>
-                      {filteredConfigs.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.projectName} ({c.type})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="bg-sky-500/10 border border-sky-500/20 rounded-xl p-3.5 flex gap-2.5 items-start">
-                    <Info className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
-                    <p className="text-slate-300 text-[10px] leading-normal font-sans">
-                      Ny IA dia hampiasa ity fikirakirana ity hamoronana mivantana ny tranonkala mifandray amin'ny {dbType}-nao. Voatahiry voaro ao amin'ny fitaovanao ny tsiambaratelo.
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={handleStep3Submit}
-                    disabled={!selectedConfigId}
-                    className={`w-full py-3 rounded-xl text-white font-bold text-xs transition-all flex items-center justify-center gap-2 ${
-                      selectedConfigId 
-                        ? "bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 shadow-lg active:scale-95" 
-                        : "bg-slate-800 text-slate-500 cursor-not-allowed"
-                    }`}
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    Manomboka manoratra kaody mivantana
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
         </div>
 
       </div>

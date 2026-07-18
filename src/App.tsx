@@ -429,7 +429,7 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden select-none">
+    <div className="flex flex-col h-screen h-[100dvh] w-screen bg-slate-950 text-slate-100 overflow-hidden select-none">
       
       {/* Header with auth indicators, credits, and admin buttons */}
       <Header
@@ -603,6 +603,7 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
       <DatabaseSettingsModal
         isOpen={showDatabaseSettings}
         onClose={() => setShowDatabaseSettings(false)}
+        onSaveSuccess={() => setShowDatabaseSettings(false)}
       />
 
       {/* Credit / Recharge Modal */}
