@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
-import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc, initializeFirestore, onSnapshot } from "firebase/firestore";
+import { initializeApp, getApps, getApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
 const DB_PATH = path.join(process.cwd(), "data-store.json");
 
@@ -78,34 +78,29 @@ try {
   cachedDb = INITIAL_DB;
 }
 
-// Initialize Firebase client SDK
+// Initialize Firebase Admin SDK
 function initFirebase() {
   try {
     const configPath = path.join(process.cwd(), "firebase-applet-config.json");
     if (fs.existsSync(configPath)) {
       const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
       
-      const firebaseApp = initializeApp({
-        apiKey: config.apiKey,
-        authDomain: config.authDomain,
+      const app = getApps().length === 0 ? initializeApp({
         projectId: config.projectId,
-        storageBucket: config.storageBucket,
-        messagingSenderId: config.messagingSenderId,
-        appId: config.appId
-      });
+      }) : getApp();
 
       if (config.firestoreDatabaseId) {
-        firestoreDbInstance = getFirestore(firebaseApp, config.firestoreDatabaseId);
+        firestoreDbInstance = getFirestore(app, config.firestoreDatabaseId);
       } else {
-        firestoreDbInstance = getFirestore(firebaseApp);
+        firestoreDbInstance = getFirestore(app);
       }
       isFirestoreInitialized = true;
-      console.log("Firebase/Firestore initialized successfully. Database ID:", config.firestoreDatabaseId || "(default)");
+      console.log("Firebase/Firestore Admin initialized successfully. Database ID:", config.firestoreDatabaseId || "(default)");
 
       // Set up real-time subscription to always keep local memory in sync across instances
-      const docRef = doc(firestoreDbInstance, "app_state", "v1");
-      onSnapshot(docRef, async (docSnap) => {
-        if (docSnap.exists()) {
+      const docRef = firestoreDbInstance.doc("app_state/v1");
+      docRef.onSnapshot(async (docSnap: any) => {
+        if (docSnap.exists) {
           const cloudData = docSnap.data() as DbSchema;
           // Validations to ensure it's a correct schema
           if (Array.isArray(cloudData.users) && Array.isArray(cloudData.geminiKeys)) {
@@ -116,12 +111,12 @@ function initFirebase() {
         } else {
           console.log("[Firestore Sync] Cloud state is empty. Seeding local database to Firestore...");
           try {
-            await setDoc(docRef, cachedDb);
+            await docRef.set(cachedDb);
           } catch (err) {
             console.error("[Firestore Sync] Failed to seed initial database to Firestore:", err);
           }
         }
-      }, (error) => {
+      }, (error: any) => {
         console.error("Firestore real-time subscription error:", error);
       });
 
@@ -129,7 +124,7 @@ function initFirebase() {
       console.warn("firebase-applet-config.json not found. Running with local disk-based persistence only.");
     }
   } catch (err) {
-    console.error("Failed to initialize Firebase client SDK:", err);
+    console.error("Failed to initialize Firebase Admin SDK:", err);
   }
 }
 
@@ -150,12 +145,12 @@ export function writeDb(db: DbSchema): void {
     
     // 2. Asynchronously write to cloud Firestore to survive server container wipes
     if (isFirestoreInitialized && firestoreDbInstance) {
-      const docRef = doc(firestoreDbInstance, "app_state", "v1");
-      setDoc(docRef, db)
+      const docRef = firestoreDbInstance.doc("app_state/v1");
+      docRef.set(db)
         .then(() => {
           // Success
         })
-        .catch((err) => {
+        .catch((err: any) => {
           console.error("Asynchronous Cloud Firestore write failed:", err);
         });
     }
