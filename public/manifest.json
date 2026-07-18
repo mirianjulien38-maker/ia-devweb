@@ -1,0 +1,18 @@
+{
+  "short_name": "DEVWEBIA",
+  "name": "DEVWEB IA - Mpamorona Tranonkala AI",
+  "description": "Sehatra mamorona tranonkala matihanina amin'ny teny Malagasy ao anatin'ny segondra vitsy amin'ny alalan'ny AI.",
+  "icons": [
+    {
+      "src": "/icon.jpg",
+      "type": "image/jpeg",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "display": "standalone",
+  "orientation": "portrait"
+}

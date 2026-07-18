@@ -1,6 +1,6 @@
 {
-  "name": "DEVWEB IA",
-  "description": "Mpamorona tranonkala matihanina mampiasa AI miaraka amin'ny preview mivantana sy fampidinana code.",
+  "name": "DEVWEBIA",
+  "description": "Sehatra matanjaka indrindra mamorona tranonkala matihanina amin'ny alalan'ny AI, optimizing SEO ary feno Progressive Web App (PWA) ihany koa.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
