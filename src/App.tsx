@@ -474,6 +474,10 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
         isGenerating={isGenerating}
         onNewProject={handleNewProject}
         onOpenDatabaseWizard={() => setShowDatabaseWizard(true)}
+        onOpenChat={() => {
+          setMobileTab("builder");
+          setIsSidebarOpen(false);
+        }}
         user={user}
         onOpenRecharge={() => setShowRechargeModal(true)}
         onOpenAdmin={() => setShowAdminModal(true)}

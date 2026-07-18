@@ -1,5 +1,5 @@
 import React from "react";
-import { Sparkles, Code2, Layers, Database, Coins, ShieldCheck, LogOut } from "lucide-react";
+import { Sparkles, Code2, Layers, Database, Coins, ShieldCheck, LogOut, MessageSquare } from "lucide-react";
 import { Language, translations } from "../translations";
 
 interface HeaderProps {
@@ -7,6 +7,7 @@ interface HeaderProps {
   isGenerating: boolean;
   onNewProject: () => void;
   onOpenDatabaseWizard?: () => void;
+  onOpenChat?: () => void;
   user: {
     id: string;
     email: string;
@@ -26,6 +27,7 @@ export default function Header({
   isGenerating, 
   onNewProject,
   onOpenDatabaseWizard,
+  onOpenChat,
   user,
   onOpenRecharge,
   onOpenAdmin,
@@ -118,6 +120,17 @@ export default function Header({
           >
             <Database className="w-3.5 h-3.5 md:w-4 md:h-4 text-sky-400" />
             <span className="hidden sm:inline">{t.databaseWizard}</span>
+          </button>
+        )}
+
+        {onOpenChat && (
+          <button
+            onClick={onOpenChat}
+            className="lg:hidden flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-white transition-all px-2.5 py-1 rounded-xl text-[10px] font-extrabold shadow-md active:scale-95 animate-pulse"
+            title={t.openChat}
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-white" />
+            <span>{t.openChat}</span>
           </button>
         )}
 

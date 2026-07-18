@@ -38,6 +38,7 @@ export interface TranslationSet {
   downloadHtml: string;
   previewLive: string;
   databaseWizard: string;
+  openChat: string;
 }
 
 export const translations: Record<Language, TranslationSet> = {
@@ -79,6 +80,7 @@ export const translations: Record<Language, TranslationSet> = {
     downloadHtml: "Ampidino ny HTML",
     previewLive: "Sary mivantana",
     databaseWizard: "Database Wizard",
+    openChat: "Hanokatra Chat",
   },
   fr: {
     brandTitle: "DevWeb IA",
@@ -118,6 +120,7 @@ export const translations: Record<Language, TranslationSet> = {
     downloadHtml: "Télécharger le HTML",
     previewLive: "Aperçu en direct",
     databaseWizard: "Assistant BDD",
+    openChat: "Ouvrir le Chat",
   },
   en: {
     brandTitle: "DevWeb AI",
@@ -157,5 +160,6 @@ export const translations: Record<Language, TranslationSet> = {
     downloadHtml: "Download HTML File",
     previewLive: "Live Preview",
     databaseWizard: "Database Wizard",
+    openChat: "Open Chat",
   }
 };
