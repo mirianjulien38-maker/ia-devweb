@@ -26,12 +26,16 @@ const COMMON_STRUCTURES: Record<string, DBStructure[]> = {
     { name: "contact_submissions", description: "Hafatra nalefan'ny mpitsidika (Contact submissions)", fields: ["id", "fullName", "email", "message", "sentAt"] }
   ],
   Supabase: [
-    { name: "profiles", description: "Tabilao ho an'ny mombamomba ny mpampiasa (Profiles table)", fields: ["id (uuid)", "email (text)", "display_name (text)", "avatar_url (text)", "updated_at (timestamp)"] },
-    { name: "messages", description: "Tabilao ho an'ny resaka chat (Messages table)", fields: ["id (bigint)", "text (text)", "sender_id (uuid)", "sender_name (text)", "created_at (timestamp)"] },
-    { name: "products", description: "Tabilao ho an'ny entana amidy (Products table)", fields: ["id (bigint)", "name (text)", "price (numeric)", "description (text)", "image_url (text)", "stock (integer)"] },
-    { name: "orders", description: "Tabilao ho an'ny kaomandy (Orders table)", fields: ["id (uuid)", "user_id (uuid)", "total_amount (numeric)", "status (text)", "created_at (timestamp)"] },
-    { name: "posts", description: "Tabilao ho an'ny bilaogy (Posts table)", fields: ["id (bigint)", "title (text)", "content (text)", "author_name (text)", "likes (integer)", "created_at (timestamp)"] },
-    { name: "contact_messages", description: "Tabilao ho an'ny hafatra avy amin'ny form (Contact submissions)", fields: ["id (bigint)", "full_name (text)", "email (text)", "message (text)", "created_at (timestamp)"] }
+    { name: "profiles", description: "Mombamomba ny mpampiasa (User profile matched with Supabase Auth)", fields: ["id (uuid)", "email (text)", "display_name (text)", "credits (numeric)", "created_at (timestamp)"] },
+    { name: "projects", description: "Tetikasa logical an'ny mpanjifa (Logical client projects)", fields: ["id (uuid)", "user_id (uuid)", "name (text)", "prompt (text)", "status (text)"] },
+    { name: "websites", description: "Fikirakirana domain sy layout (Websites configurations)", fields: ["id (uuid)", "project_id (uuid)", "user_id (uuid)", "domain (text)", "subdomain (text)"] },
+    { name: "pages", description: "Votoatin'ny pejy feno HTML (Pages with full HTML content code)", fields: ["id (uuid)", "website_id (uuid)", "project_id (uuid)", "title (text)", "html_content (text)"] },
+    { name: "blog_posts", description: "Lahatsoratra bilaogy feno (Multi-tenant blog entries)", fields: ["id (uuid)", "website_id (uuid)", "project_id (uuid)", "title (text)", "content (text)"] },
+    { name: "media", description: "Sary Unsplash ho an'ny library (Linked images library)", fields: ["id (uuid)", "website_id (uuid)", "project_id (uuid)", "url (text)", "file_type (text)"] },
+    { name: "settings", description: "Loko, endrika, logo ary sosialy (Styles and layout settings)", fields: ["id (uuid)", "website_id (uuid)", "project_id (uuid)", "primary_color (text)", "social_links (jsonb)"] },
+    { name: "seo", description: "SEO Title, meta sy sary preview (SEO Title and Meta tags)", fields: ["id (uuid)", "website_id (uuid)", "project_id (uuid)", "meta_title (text)", "meta_description (text)"] },
+    { name: "forms", description: "Hafatra voarain'ny form (Visitor contact forms submissions)", fields: ["id (uuid)", "website_id (uuid)", "project_id (uuid)", "visitor_name (text)", "visitor_message (text)"] },
+    { name: "analytics", description: "Fijeren'ny mpitsidika pejy (Analytics page views monitor)", fields: ["id (uuid)", "website_id (uuid)", "project_id (uuid)", "page_url (text)", "user_agent (text)"] }
   ]
 };
 
@@ -336,7 +340,10 @@ ${dbFunctions}
                 {/* Firebase Option */}
                 <button
                   type="button"
-                  onClick={() => setProvider("Firebase")}
+                  onClick={() => {
+                    setProvider("Firebase");
+                    setSelectedStructures(["users", "contact_submissions"]);
+                  }}
                   className={`p-6 rounded-2xl border text-left transition-all duration-300 relative group overflow-hidden ${
                     provider === "Firebase" 
                       ? "bg-sky-500/10 border-sky-500 text-sky-400 shadow-lg shadow-sky-500/5" 
@@ -362,7 +369,10 @@ ${dbFunctions}
                 {/* Supabase Option */}
                 <button
                   type="button"
-                  onClick={() => setProvider("Supabase")}
+                  onClick={() => {
+                    setProvider("Supabase");
+                    setSelectedStructures(["profiles", "projects", "websites", "pages", "blog_posts", "media", "settings", "seo", "forms", "analytics"]);
+                  }}
                   className={`p-6 rounded-2xl border text-left transition-all duration-300 relative group overflow-hidden ${
                     provider === "Supabase" 
                       ? "bg-sky-500/10 border-sky-500 text-sky-400 shadow-lg shadow-sky-500/5" 

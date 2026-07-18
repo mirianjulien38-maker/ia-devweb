@@ -61,6 +61,22 @@ const INITIAL_DB: DbSchema = {
 let cachedDb: DbSchema = INITIAL_DB;
 let isFirestoreInitialized = false;
 let firestoreDbInstance: any = null;
+let hasLoadedFirstSnapshot = false;
+let dbLoadedPromise: Promise<void> | null = null;
+let dbLoadedResolve: (() => void) | null = null;
+
+dbLoadedPromise = new Promise<void>((resolve) => {
+  dbLoadedResolve = resolve;
+});
+
+// Timeout backup: Resolve anyway after 3.5 seconds to avoid hanging requests if Firestore is unreachable
+const timeoutId = setTimeout(() => {
+  if (!hasLoadedFirstSnapshot) {
+    console.warn("[Startup] Firestore first load timed out, falling back to local memory database.");
+    hasLoadedFirstSnapshot = true;
+    if (dbLoadedResolve) dbLoadedResolve();
+  }
+}, 3500);
 
 // 1. Immediately load local backup copy synchronously so cachedDb is never empty on immediate reads
 try {
@@ -122,20 +138,44 @@ function initFirebase() {
             console.error("[Firestore Sync] Failed to seed initial database to Firestore:", err);
           }
         }
+
+        if (!hasLoadedFirstSnapshot) {
+          hasLoadedFirstSnapshot = true;
+          clearTimeout(timeoutId);
+          if (dbLoadedResolve) dbLoadedResolve();
+        }
       }, (error) => {
         console.error("Firestore real-time subscription error:", error);
+        if (!hasLoadedFirstSnapshot) {
+          hasLoadedFirstSnapshot = true;
+          clearTimeout(timeoutId);
+          if (dbLoadedResolve) dbLoadedResolve();
+        }
       });
 
     } else {
       console.warn("firebase-applet-config.json not found. Running with local disk-based persistence only.");
+      hasLoadedFirstSnapshot = true;
+      clearTimeout(timeoutId);
+      if (dbLoadedResolve) dbLoadedResolve();
     }
   } catch (err) {
     console.error("Failed to initialize Firebase client SDK:", err);
+    hasLoadedFirstSnapshot = true;
+    clearTimeout(timeoutId);
+    if (dbLoadedResolve) dbLoadedResolve();
   }
 }
 
 // Initialize on module load
 initFirebase();
+
+export async function ensureDbLoaded(): Promise<DbSchema> {
+  if (dbLoadedPromise) {
+    await dbLoadedPromise;
+  }
+  return cachedDb;
+}
 
 // Public function: Reads the DB (instantaneous from memory)
 export function readDb(): DbSchema {
@@ -144,6 +184,11 @@ export function readDb(): DbSchema {
 
 // Public function: Writes the DB (updates memory, local disk synchronously, and Firestore asynchronously)
 export function writeDb(db: DbSchema): void {
+  // If Firestore is enabled but hasn't finished loading yet, prevent writes to avoid overwriting cloud state with empty/default data
+  if (isFirestoreInitialized && !hasLoadedFirstSnapshot) {
+    console.warn("[Database Warning] Blocked database write attempt before first Firestore snapshot loaded. This protects against overwriting cloud data.");
+    return;
+  }
   try {
     cachedDb = db;
     // 1. Write to local file for fast local recovery & synchronous safety

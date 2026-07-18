@@ -13,6 +13,8 @@ import { Language, translations } from "./translations";
 import FaqModal from "./components/FaqModal";
 import { Sparkles, Code2, AlertTriangle, Layers, X, Trash2, ArrowRight, Eye, Menu, SidebarOpen, SidebarClose, Coins, ShieldCheck, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { auth } from "./lib/firebase";
+import { signOut } from "firebase/auth";
 import { DEFAULT_WEBSITE_CODE } from "./defaultWebsite";
 
 const INITIAL_PROJECT: WebSiteProject = {
@@ -219,6 +221,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    signOut(auth).catch((err) => console.error("Tsy nahomby ny fivoahana amin'ny Firebase:", err));
     setUser(null);
     localStorage.removeItem("devweb-ia-user");
   };
@@ -322,12 +325,21 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
       const matchedTitle = userPrompt.match(/antsoina hoe ['"](.*?)['"]/i) || userPrompt.match(/named ['"](.*?)['"]/i);
       const derivedName = matchedTitle ? matchedTitle[1] : `Tetikasa - ${promptSnippet}`;
 
+      let supabaseMessage = "";
+      if (data.supabaseResult) {
+        if (data.supabaseResult.success) {
+          supabaseMessage = `\n\n⚡ **Supabase SaaS Sync**: ${data.supabaseResult.message}. Tafajoro ho azy ny data ao amin'ny tabilao (projects, websites, pages, blog_posts, media, settings, seo, forms, analytics).`;
+        } else if (data.supabaseResult.message && !data.supabaseResult.message.includes("Tsy voahindry")) {
+          supabaseMessage = `\n\n⚠️ **Supabase SaaS Sync**: ${data.supabaseResult.message}`;
+        }
+      }
+
       const newAiMsg: ChatMessage = {
         id: aiMessageId,
         sender: "ai",
-        text: refine 
+        text: (refine 
           ? `Nohavaozina soa aman-tsara ny tranonkalanao araka ny torolalana: "${userPrompt}". Hitanao ao amin'ny preview ny vokatry ny fanovana. (Nandany ${data.creditCost} credits)`
-          : `Tafajoro soa aman-tsara ny tranonkalanao! "${derivedName}". Afaka telecharger-nao mivantana ho fichier HTML io na sivaninao eto ihany koa. (Nandany ${data.creditCost} credits)`,
+          : `Tafajoro soa aman-tsara ny tranonkalanao! "${derivedName}". Afaka telecharger-nao mivantana ho fichier HTML io na sivaninao eto ihany koa. (Nandany ${data.creditCost} credits)`) + supabaseMessage,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         code: data.code
       };

@@ -3,7 +3,7 @@ import JSZip from "jszip";
 import { 
   Monitor, Tablet, Smartphone, Download, 
   Copy, Check, ExternalLink, RefreshCw, 
-  Code2, Eye 
+  Code2, Eye, Maximize2, Minimize2 
 } from "lucide-react";
 
 interface PreviewAreaProps {
@@ -19,6 +19,7 @@ export default function PreviewArea({ code, projectName, isGenerating }: Preview
   const [viewport, setViewport] = useState<ViewportSize>("desktop");
   const [activeTab, setActiveTab] = useState<ActiveTab>("preview");
   const [copied, setCopied] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Automatically switch to preview tab when code changes (new generation or play preview clicked)
@@ -166,7 +167,9 @@ MISAOTRA SY MIRARY SOA AMIN'NY FAMPIASANA NY DEVWEBIA!
   };
 
   return (
-    <div className="flex-1 bg-slate-950 flex flex-col overflow-hidden h-full">
+    <div className={`flex-1 bg-slate-950 flex flex-col overflow-hidden h-full transition-all duration-300 ${
+      isFullscreen ? "fixed inset-0 z-[200] w-screen h-screen p-4" : ""
+    }`}>
       {/* Control bar */}
       <div className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex flex-wrap justify-between items-center gap-3 shrink-0">
         {/* Tab switchers */}
@@ -274,13 +277,22 @@ MISAOTRA SY MIRARY SOA AMIN'NY FAMPIASANA NY DEVWEBIA!
             </button>
 
             {activeTab === "preview" && (
-              <button
-                onClick={handleOpenNewTab}
-                className="hidden lg:flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-slate-200 p-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
-                title="Sokafy amin'ny Tab vaovao"
-              >
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-              </button>
+              <>
+                <button
+                  onClick={() => setIsFullscreen(!isFullscreen)}
+                  className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-slate-200 p-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                  title={isFullscreen ? "Hiala amin'ny Plein écran" : "Hijery Plein écran (Full-screen)"}
+                >
+                  {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-sky-400 animate-pulse" /> : <Maximize2 className="w-3.5 h-3.5 text-slate-400" />}
+                </button>
+                <button
+                  onClick={handleOpenNewTab}
+                  className="hidden lg:flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-slate-200 p-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                  title="Sokafy amin'ny Tab vaovao"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+              </>
             )}
           </div>
         )}

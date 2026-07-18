@@ -3,7 +3,9 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
-import { readDb, writeDb, rotateGeminiKey, User, PaymentClaim } from "./server-db";
+import { readDb, writeDb, rotateGeminiKey, User, PaymentClaim, ensureDbLoaded } from "./server-db";
+import { supabaseSyncNewProject } from "./server-supabase";
+
 
 dotenv.config();
 
@@ -12,6 +14,17 @@ const app = express();
 const PORT = process.env.RENDER === "true" && process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
 app.use(express.json({ limit: "15mb" }));
+
+// Middleware to ensure DB has finished loading from Firestore before processing any API requests
+app.use(async (req, res, next) => {
+  try {
+    await ensureDbLoaded();
+    next();
+  } catch (err) {
+    console.error("Fahadisoana teo am-piandrasana ny lohamilina DB:", err);
+    next();
+  }
+});
 
 // Initialize Google Gen AI with specific keys (either custom or fallback default)
 function getAIClient(customApiKey?: string | null): GoogleGenAI {
@@ -69,10 +82,22 @@ app.post("/api/register", (req, res) => {
     const db = readDb();
     const cleanEmail = email.toLowerCase().trim();
     
-    // Check if user already exists
+    // Check if user already exists. If yes, return the existing user to preserve their correct credits!
     const existing = db.users.find(u => u.email.toLowerCase() === cleanEmail);
     if (existing) {
-      return res.status(400).json({ error: "Efa misy mampiasa io mailaka io." });
+      console.log(`[Register] User ${cleanEmail} already exists. Returning existing profile with ${existing.credits} credits.`);
+      return res.json({
+        success: true,
+        user: {
+          id: existing.id,
+          email: existing.email,
+          name: existing.name,
+          credits: existing.credits,
+          tokensUsed: existing.tokensUsed,
+          bonusClaimsCount: existing.bonusClaimsCount,
+          isAdmin: existing.email === "horlandobe@gmail.com"
+        }
+      });
     }
 
     // New users get 15 free credits by default
@@ -549,13 +574,37 @@ Azafady, ovay ity kaody ity araka ny fangatahana etsy ambony. Avereno ny kaody H
     latestUser.tokensUsed += totalTokens;
     writeDb(updatedDb);
 
+    // Automated client website project synchronization inside the existing Supabase project (Multi-tenant SaaS)
+    const matchedTitle = prompt.match(/antsoina hoe ['"](.*?)['"]/i) || prompt.match(/named ['"](.*?)['"]/i);
+    const derivedName = matchedTitle ? matchedTitle[1] : `Tetikasa - ${prompt.substring(0, 25).trim() + (prompt.length > 25 ? "..." : "")}`;
+
+    let supabaseResult = { success: false, message: "Tsy voahindry (Credentials missing or not configured)" };
+    try {
+      const syncRes = await supabaseSyncNewProject(
+        user.id,
+        user.email,
+        derivedName,
+        prompt,
+        htmlCode
+      );
+      if (syncRes.success) {
+        supabaseResult = { success: true, message: `Voatahiry soa aman-tsara ao amin'ny Supabase ny tetikasa (Project ID: ${syncRes.projectId})` };
+      } else {
+        supabaseResult = { success: false, message: `Tsy nahomby ny fitahirizana ao amin'ny Supabase: ${syncRes.error}` };
+      }
+    } catch (sbErr: any) {
+      console.error("[Supabase Integration Error]", sbErr.message);
+      supabaseResult = { success: false, message: `Fahadisoana teo am-pifandraisana amin'ny Supabase: ${sbErr.message}` };
+    }
+
     res.json({
       success: true,
       code: htmlCode,
       rawExplanation: replyText.replace(/```html[\s\S]*?```/g, "").trim(),
       tokensUsed: totalTokens,
       creditCost: parseFloat(creditCost.toFixed(4)),
-      userCredits: latestUser.credits
+      userCredits: latestUser.credits,
+      supabaseResult: supabaseResult
     });
 
   } catch (error: any) {
