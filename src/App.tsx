@@ -66,7 +66,28 @@ export default function App() {
       setCurrentProject(JSON.parse(savedCurrent));
     }
     if (savedChat) {
-      setChatHistory(JSON.parse(savedChat));
+      const parsedChat = JSON.parse(savedChat);
+      if (parsedChat.length === 0) {
+        setChatHistory([
+          {
+            id: "welcome-ai",
+            sender: "ai",
+            text: "Salama tompoko! Faly miarahaba anao aho. Inona no karazana tranonkala (site web) tianao hamboarina na hoforonina androany?",
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          }
+        ]);
+      } else {
+        setChatHistory(parsedChat);
+      }
+    } else {
+      setChatHistory([
+        {
+          id: "welcome-ai",
+          sender: "ai",
+          text: "Salama tompoko! Faly miarahaba anao aho. Inona no karazana tranonkala (site web) tianao hamboarina na hoforonina androany?",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        }
+      ]);
     }
     if (savedLang) {
       setLanguage(savedLang as Language);
@@ -335,7 +356,14 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
 
   const handleNewProject = () => {
     saveCurrentProjectToStorage(null);
-    saveChatToStorage([]);
+    saveChatToStorage([
+      {
+        id: `welcome-ai-${Date.now()}`,
+        sender: "ai",
+        text: "Salama tompoko! Faly miarahaba anao aho. Inona no karazana tranonkala (site web) tianao hamboarina na hoforonina androany?",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      }
+    ]);
     setErrorMessage(null);
   };
 
@@ -372,7 +400,14 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
   };
 
   const handleClearHistory = () => {
-    saveChatToStorage([]);
+    saveChatToStorage([
+      {
+        id: `welcome-ai-${Date.now()}`,
+        sender: "ai",
+        text: "Salama tompoko! Faly miarahaba anao aho. Inona no karazana tranonkala (site web) tianao hamboarina na hoforonina androany?",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      }
+    ]);
   };
 
   const handleSelectCode = (code: string, text: string) => {

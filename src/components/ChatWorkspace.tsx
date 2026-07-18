@@ -166,14 +166,34 @@ Azafady:
 
       {/* Chat Messages Stream or Empty State templates list */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-800">
-        {chatHistory.length === 0 ? (
+        {chatHistory.length <= 1 ? (
           /* Empty Chat Area with ChatGPT-style Greeting & Templates */
           <div className="max-w-2xl mx-auto space-y-8 py-6 animate-fadeIn">
-            <div className="text-center space-y-3">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center mx-auto shadow-xl shadow-sky-500/10">
-                <Sparkles className="w-7 h-7 text-white animate-pulse" />
+            {/* Display the welcome message as a real chat bubble at the top if present */}
+            {chatHistory.map((msg) => (
+              <div
+                key={msg.id}
+                className="flex gap-4 justify-start animate-slideUp mb-6 animate-fadeIn"
+              >
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-sky-500/10 border border-sky-400/20">
+                  <Sparkles className="w-4.5 h-4.5 text-white animate-pulse" />
+                </div>
+                <div className="flex flex-col bg-slate-950/60 border border-slate-850/80 text-slate-200 rounded-2xl rounded-tl-none p-4.5 text-xs leading-relaxed max-w-[85%] shadow-xl">
+                  <div className="flex items-center gap-2 mb-2 opacity-50 text-[10px] font-mono">
+                    <span className="font-bold">DEVWEB AI MPAMORONA</span>
+                    <span>•</span>
+                    <span>{msg.timestamp}</span>
+                  </div>
+                  <p className="font-sans break-words whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                </div>
               </div>
-              <h2 className="text-white font-extrabold text-xl leading-tight font-sans tracking-tight">
+            ))}
+
+            <div className="text-center space-y-3 pt-4 border-t border-slate-800/40">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center mx-auto shadow-lg shadow-sky-500/10">
+                <Sparkles className="w-6 h-6 text-white animate-pulse" />
+              </div>
+              <h2 className="text-white font-extrabold text-lg leading-tight font-sans tracking-tight">
                 Inona no hamboarintsika androany?
               </h2>
               <p className="text-slate-400 text-xs max-w-sm mx-auto font-sans leading-relaxed">
