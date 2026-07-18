@@ -33,7 +33,7 @@ export default function App() {
   const [showDatabaseWizard, setShowDatabaseWizard] = useState(false);
   const [showDatabaseSettings, setShowDatabaseSettings] = useState(false);
   const [mobileTab, setMobileTab] = useState<"builder" | "preview">("builder");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default on mobile, checked on mount
 
   // Authentication & Credits State
   const [user, setUser] = useState<{
@@ -50,9 +50,43 @@ export default function App() {
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [language, setLanguage] = useState<Language>("mg");
   const [showFaqModal, setShowFaqModal] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+
+  // Dynamic viewport adjustment for mobile virtual keyboards (Android & iOS)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const updateHeight = () => {
+      if (window.visualViewport) {
+        setViewportHeight(window.visualViewport.height);
+      } else {
+        setViewportHeight(window.innerHeight);
+      }
+    };
+
+    updateHeight();
+
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", updateHeight);
+      vv.addEventListener("scroll", updateHeight);
+    }
+    window.addEventListener("resize", updateHeight);
+
+    return () => {
+      if (vv) {
+        vv.removeEventListener("resize", updateHeight);
+        vv.removeEventListener("scroll", updateHeight);
+      }
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, []);
 
   // Load from local storage on mount
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsSidebarOpen(window.innerWidth >= 1024);
+    }
     const savedProjects = localStorage.getItem("devweb-ia-projects");
     const savedCurrent = localStorage.getItem("devweb-ia-current");
     const savedChat = localStorage.getItem("devweb-ia-chat");
@@ -429,7 +463,10 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
   }
 
   return (
-    <div className="flex flex-col h-screen h-[100dvh] w-screen bg-slate-950 text-slate-100 overflow-hidden select-none">
+    <div 
+      style={viewportHeight ? { height: `${viewportHeight}px` } : undefined}
+      className={`flex flex-col w-screen bg-slate-950 text-slate-100 overflow-hidden select-none ${!viewportHeight ? "h-screen h-[100dvh]" : ""}`}
+    >
       
       {/* Header with auth indicators, credits, and admin buttons */}
       <Header
@@ -499,22 +536,24 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
       {/* Main Workspace Layout */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         {/* Left Sidebar (ChatGPT-style) - Desktop */}
-        <ChatHistorySidebar
-          projects={projects}
-          currentProjectId={currentProject ? currentProject.id : undefined}
-          onSelectProject={handleSelectProject}
-          onDeleteProject={handleDeleteProject}
-          onNewProject={handleNewProject}
-          onOpenDatabaseSettings={() => setShowDatabaseSettings(true)}
-          onClearHistory={handleClearHistory}
-          isOpen={isSidebarOpen}
-          onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-          user={user}
-          onOpenRecharge={() => setShowRechargeModal(true)}
-          language={language}
-          onLanguageChange={handleLanguageChange}
-          onOpenFaq={() => setShowFaqModal(true)}
-        />
+        <div className="hidden lg:flex h-full shrink-0">
+          <ChatHistorySidebar
+            projects={projects}
+            currentProjectId={currentProject ? currentProject.id : undefined}
+            onSelectProject={handleSelectProject}
+            onDeleteProject={handleDeleteProject}
+            onNewProject={handleNewProject}
+            onOpenDatabaseSettings={() => setShowDatabaseSettings(true)}
+            onClearHistory={handleClearHistory}
+            isOpen={isSidebarOpen}
+            onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+            user={user}
+            onOpenRecharge={() => setShowRechargeModal(true)}
+            language={language}
+            onLanguageChange={handleLanguageChange}
+            onOpenFaq={() => setShowFaqModal(true)}
+          />
+        </div>
 
         {/* Mobile/Tablet Overlaid Sidebar */}
         {isSidebarOpen && (
@@ -545,7 +584,7 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
         )}
 
         {/* Middle Chat Panel */}
-        <div className={`flex-1 h-full overflow-hidden ${mobileTab === "builder" ? "flex flex-col" : "hidden lg:flex lg:flex-col"}`}>
+        <div className={`flex-1 min-h-0 overflow-hidden ${mobileTab === "builder" ? "flex flex-col" : "hidden lg:flex lg:flex-col"}`}>
           <ChatWorkspace
             onGenerate={handleGenerateSite}
             isGenerating={isGenerating}
@@ -559,7 +598,7 @@ Miaraka amin'izany, ny tsiambaratelonao rehetra dia voaaro tsara ary tsy miseho 
         </div>
 
         {/* Right Iframe & Preview Panel */}
-        <div className={`flex-1 h-full overflow-hidden ${mobileTab === "preview" ? "flex flex-col" : "hidden lg:flex lg:flex-col"} border-l border-slate-800/60`}>
+        <div className={`flex-1 min-h-0 overflow-hidden ${mobileTab === "preview" ? "flex flex-col" : "hidden lg:flex lg:flex-col"} border-l border-slate-800/60`}>
           <PreviewArea
             code={currentProject ? currentProject.code : ""}
             projectName={currentProject ? currentProject.name : ""}

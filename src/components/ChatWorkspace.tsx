@@ -160,7 +160,7 @@ Azafady:
   }, [isGenerating]);
 
   return (
-    <div className="flex-1 h-full bg-slate-900/40 flex flex-col overflow-hidden text-slate-100 font-sans relative">
+    <div className="flex-1 min-h-0 bg-slate-900/40 flex flex-col overflow-hidden text-slate-100 font-sans relative">
       
       {/* Top Active Chat Header */}
       <div className="px-4 py-3 md:px-6 md:py-4 border-b border-slate-800/60 bg-slate-900/50 flex justify-between items-center shrink-0">
@@ -361,7 +361,7 @@ Azafady:
       </div>
 
       {/* Centered ChatGPT Prompt Input Area */}
-      <div className="p-3 md:p-6 border-t border-slate-800/60 bg-slate-950/30 shrink-0">
+      <div className="p-2.5 sm:p-4 md:p-6 border-t border-slate-800/60 bg-slate-950/40 shrink-0">
         <div className="max-w-3xl mx-auto relative">
           <form onSubmit={handlePromptSubmit} className="relative flex items-center">
             <textarea
@@ -373,7 +373,7 @@ Azafady:
                   ? "Inona no fanitsiana tianao hatao?"
                   : "Soraty eto ny karazana tranonkala tianao hamboarina..."
               }
-              className="w-full bg-slate-950/70 border border-slate-850/80 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-slate-100 placeholder-slate-750 rounded-2xl pl-3.5 pr-11 py-3 md:py-4 md:pr-14 text-xs resize-none h-12 md:h-20 outline-none transition-all shadow-inner leading-normal sm:leading-relaxed"
+              className="w-full bg-slate-950/70 border border-slate-850/80 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-slate-100 placeholder-slate-750 rounded-2xl pl-3.5 pr-12 py-3.5 md:py-4 md:pr-14 text-xs resize-none h-14 sm:h-16 md:h-20 outline-none transition-all shadow-inner leading-normal sm:leading-relaxed"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -384,7 +384,7 @@ Azafady:
             <button
               type="submit"
               disabled={!prompt.trim() || isGenerating}
-              className="absolute right-2 md:right-3.5 top-1/2 -translate-y-1/2 md:top-auto md:translate-y-0 md:bottom-3 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-900 text-white disabled:text-slate-700 p-2 md:p-2.5 rounded-xl transition-all active:scale-95 shadow-lg"
+              className="absolute right-2 md:right-3.5 top-1/2 -translate-y-1/2 md:top-auto md:translate-y-0 md:bottom-3 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-900 text-white disabled:text-slate-700 p-2.5 rounded-xl transition-all active:scale-95 shadow-lg flex items-center justify-center cursor-pointer"
               title="Alefaso"
             >
               <Send className="w-3.5 h-3.5" />
