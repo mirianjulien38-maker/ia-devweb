@@ -74,8 +74,30 @@ export default function App() {
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
-      // Fetch latest user status in background to keep credits in sync
-      syncUserStatus(parsedUser.email);
+      
+      // Perform session synchronization to ensure the server DB contains this user's state
+      // as well as any Gemini API keys that we have saved in client storage!
+      const savedKeys = localStorage.getItem("devweb-ia-gemini-keys");
+      const geminiKeys = savedKeys ? JSON.parse(savedKeys) : [];
+      
+      fetch("/api/sync-render-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user: parsedUser,
+          geminiKeys: geminiKeys
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log("Mampifanaraka amin'ny Render server...", data);
+        // Once synced, call syncUserStatus to fetch the absolute latest credits/stats
+        syncUserStatus(parsedUser.email);
+      })
+      .catch(err => {
+        console.error("Fahadisoana rehefa nampifanaraka ny session:", err);
+        syncUserStatus(parsedUser.email);
+      });
     }
   }, []);
 

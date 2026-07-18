@@ -40,6 +40,29 @@ export default function AdminModal({ isOpen, onClose, adminEmail, onTriggerUserS
       }
       setStats(data);
       setKeysInput(data.geminiKeys.join("\n"));
+
+      // Cache keys locally or restore them if the server DB was wiped
+      if (data.geminiKeys && data.geminiKeys.length > 0) {
+        localStorage.setItem("devweb-ia-gemini-keys", JSON.stringify(data.geminiKeys));
+      } else {
+        const cachedKeysStr = localStorage.getItem("devweb-ia-gemini-keys");
+        if (cachedKeysStr) {
+          const cachedKeys = JSON.parse(cachedKeysStr);
+          if (cachedKeys.length > 0) {
+            console.log("Restoring wiped keys from localStorage to Render server...");
+            await fetch("/api/admin/save-keys", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                adminEmail,
+                keys: cachedKeys
+              })
+            });
+            // Re-fetch to get updated stats on screen
+            setTimeout(fetchStats, 600);
+          }
+        }
+      }
     } catch (err: any) {
       setErrorMsg(err.message);
     } finally {
@@ -70,6 +93,7 @@ export default function AdminModal({ isOpen, onClose, adminEmail, onTriggerUserS
         throw new Error(data.error || "Tsy nahomby ny fitahirizana.");
       }
 
+      localStorage.setItem("devweb-ia-gemini-keys", JSON.stringify(keysArray));
       setSuccessMsg(data.message);
       await fetchStats();
     } catch (err: any) {

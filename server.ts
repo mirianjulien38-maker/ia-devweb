@@ -17,7 +17,11 @@ app.use(express.json({ limit: "15mb" }));
 function getAIClient(customApiKey?: string | null): GoogleGenAI {
   const apiKey = customApiKey || process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey.trim() === "") {
-    throw new Error("Tsy misy GEMINI_API_KEY azo ampiasaina amin'izao fotoana izao. Mifandraisa amin'ny Admin.");
+    const isRender = process.env.RENDER === "true";
+    if (isRender) {
+      throw new Error("Tsy misy GEMINI_API_KEY hita ao amin'ny Render. Azafady ampidiro ho 'Environment Variable' mitondra ny anarana 'GEMINI_API_KEY' ao amin'ny Render Dashboard-nao ny fanalahidy, na ampidiro ao amin'ny Admin Panel indray izany.");
+    }
+    throw new Error("Tsy misy GEMINI_API_KEY azo ampiasaina amin'izao fotoana izao. Mifandraisa amin'ny Admin na ampidiro ao amin'ny Admin Panel ny fanalahidy.");
   }
   
   return new GoogleGenAI({
@@ -495,6 +499,61 @@ Azafady, ovay ity kaody ity araka ny fangatahana etsy ambony. Avereno ny kaody H
       error: "Nisy olana teo amin'ny fifandraisana amin'ny AI. Manandrama indray azafady.",
       details: error.message
     });
+  }
+});
+
+// SESSION SYNC FOR STATELESS HOSTING (RENDER)
+app.post("/api/sync-render-session", (req, res) => {
+  try {
+    const { user, geminiKeys } = req.body;
+    let userRecreated = false;
+    let keysRestored = false;
+
+    const db = readDb();
+
+    if (user && user.email) {
+      const cleanEmail = user.email.toLowerCase().trim();
+      const existing = db.users.find(u => u.email.toLowerCase() === cleanEmail);
+      if (!existing) {
+        // Recreate the user session based on local storage backup
+        const restoredUser: User = {
+          id: user.id || `user-${Date.now()}`,
+          email: cleanEmail,
+          name: user.name || "User",
+          password: user.password || "RestoredUserPwd",
+          credits: typeof user.credits === "number" ? user.credits : 15,
+          tokensUsed: typeof user.tokensUsed === "number" ? user.tokensUsed : 0,
+          bonusClaimsCount: typeof user.bonusClaimsCount === "number" ? user.bonusClaimsCount : 0,
+          lastBonusClaimed: user.lastBonusClaimed,
+          createdAt: user.createdAt || new Date().toISOString()
+        };
+        db.users.push(restoredUser);
+        userRecreated = true;
+      }
+    }
+
+    if (Array.isArray(geminiKeys) && geminiKeys.length > 0) {
+      // If the server has no Gemini keys (meaning it was reset on Render), restore them!
+      if (db.geminiKeys.length === 0) {
+        db.geminiKeys = geminiKeys.map((k: string) => k.trim()).filter((k: string) => k.length > 0);
+        keysRestored = true;
+      }
+    }
+
+    if (userRecreated || keysRestored) {
+      writeDb(db);
+    }
+
+    res.json({
+      success: true,
+      userRecreated,
+      keysRestored,
+      totalUsersCount: db.users.length,
+      totalKeysCount: db.geminiKeys.length
+    });
+  } catch (error: any) {
+    console.error("Fahadisoana rehefa nampifanaraka ny Render session:", error);
+    res.status(500).json({ error: "Tsy nahomby ny fampifanarahana ny mombamomba.", details: error.message });
   }
 });
 
