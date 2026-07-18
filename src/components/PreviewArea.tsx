@@ -35,6 +35,56 @@ export default function PreviewArea({ code, projectName, isGenerating }: Preview
     }
   }, [code, activeTab]);
 
+  const handleIframeLoad = () => {
+    if (!iframeRef.current) return;
+    try {
+      const iframe = iframeRef.current;
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) return;
+
+      // Intercept link clicks inside the iframe to prevent top/relative navigations
+      iframeDoc.addEventListener("click", (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        const anchor = target.closest("a");
+        if (anchor) {
+          const href = anchor.getAttribute("href");
+          
+          // If it's a relative path to the server or empty, or "/" which loads DEVWEBIA, intercept it!
+          if (
+            href === "/" || 
+            href === "" || 
+            (href && !href.startsWith("#") && !href.startsWith("http") && !href.startsWith("javascript:") && !href.startsWith("mailto:") && !href.startsWith("tel:"))
+          ) {
+            e.preventDefault();
+            console.log("[DEVWEB Intercept] Blocked navigation inside preview to preserve preview state:", href);
+            
+            // If it's a target section (hash-like name), try to scroll to it manually
+            if (href && href.length > 1 && !href.includes("/") && !href.includes("http")) {
+              const cleanedId = href.replace("#", "");
+              const targetEl = iframeDoc.getElementById(cleanedId);
+              if (targetEl) {
+                targetEl.scrollIntoView({ behavior: "smooth" });
+              }
+            }
+          }
+        }
+      }, true);
+
+      // Intercept form submissions inside the iframe to prevent full page reloads/redirects
+      iframeDoc.addEventListener("submit", (e: Event) => {
+        const form = e.target as HTMLFormElement;
+        const action = form.getAttribute("action");
+        if (!action || action === "/" || action === "" || action === window.location.pathname) {
+          e.preventDefault();
+          console.log("[DEVWEB Intercept] Blocked form submission relative action to preserve preview state.");
+        }
+      }, true);
+
+    } catch (err) {
+      console.warn("Saha fitsapana / find interceptors failed:", err);
+    }
+  };
+
   const handleCopyCode = () => {
     navigator.clipboard.writeText(code);
     setCopied(true);
@@ -231,6 +281,7 @@ export default function PreviewArea({ code, projectName, isGenerating }: Preview
                 title="DEVWEB IA Preview"
                 className="w-full h-full border-0"
                 sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
+                onLoad={handleIframeLoad}
               />
             </div>
           </div>

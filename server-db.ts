@@ -116,7 +116,8 @@ function initFirebase() {
         } else {
           console.log("[Firestore Sync] Cloud state is empty. Seeding local database to Firestore...");
           try {
-            await setDoc(docRef, cachedDb);
+            const sanitizedDb = JSON.parse(JSON.stringify(cachedDb));
+            await setDoc(docRef, sanitizedDb);
           } catch (err) {
             console.error("[Firestore Sync] Failed to seed initial database to Firestore:", err);
           }
@@ -151,7 +152,8 @@ export function writeDb(db: DbSchema): void {
     // 2. Asynchronously write to cloud Firestore to survive server container wipes
     if (isFirestoreInitialized && firestoreDbInstance) {
       const docRef = doc(firestoreDbInstance, "app_state", "v1");
-      setDoc(docRef, db)
+      const sanitizedDb = JSON.parse(JSON.stringify(db));
+      setDoc(docRef, sanitizedDb)
         .then(() => {
           // Success
         })

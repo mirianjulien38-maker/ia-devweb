@@ -49,6 +49,10 @@ Tena manan-danja ireto fitsipika ireto:
 6. Mamorona lahatsoratra tena misy dikany sy mifanaraka amin'ny orinasa na lohahevitra (aza mampiasa "Lorem Ipsum").
 7. Ampio JavaScript matanjaka ho an'ny fifandraisana (interactive features): menu responsive (hamburger menu), dark mode toggle, scroll smooth, modal popup, filter an'ny portfolio na vokatra, animations kanto, ary simulation handefasana form (contact form contact validation with modal popup success).
 8. Ny kaody dia tokana sy madio, misy fanehoan-kevitra (comments) manazava ny fizarana tsirairay.
+9. Fepetra momba ny rohy (links) sy ny formulaire (forms) mba hahatonga ny tranonkala ho mahaleotena tanteraka (self-contained):
+   - TSY MAHAZO mampiasa relative links mankany amin'ny root na pejy hafa ianao (ohatra: aza manao 'href="/"', 'href=""', 'action="/"', na 'action=""') satria mampiverina ny mpampiasa ho any amin'ny site DEVWEBIA izany.
+   - Ny rohy rehetra amin'ny navigation na bokotra dia tsy maintsy mampiasa hash scroll (ohatra: 'href="#home"', 'href="#services"', 'href="#contact"') na 'href="javascript:void(0)"'.
+   - Ny forms rehetra dia TSY MAHAZO mampiasa 'action' handefasana pejy fa tsy maintsy mampiasa JavaScript handler (ohatra: 'onsubmit="event.preventDefault(); ampidiro_eto_ny_logic_manaraka()"') mba hampisehoana modal popup fahombiazana kanto tsy misy reload pejy.
 
 Raha misy kaody efa misy (existing code) omen'ny mpampiasa, ovay mivantana io kaody io araka ny fangatahany vaovao (manampy fizarana, manova loko, manitsy lahatsoratra, sns.) fa aza manary ny fizarana efa miasa tsara. Mitahiza ny rafitra sy ny lohahevitra ankapobeny raha tsy nangatahina hovaina izany.
 
