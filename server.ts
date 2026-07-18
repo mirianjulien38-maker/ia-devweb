@@ -423,9 +423,42 @@ app.post("/api/generate-site", async (req, res) => {
       });
     }
 
-    // Key Rotation: pick rotated key if registered, otherwise fall back to environment key
+    // Let's implement a robust call with retries and multiple keys to prevent any AI errors
+    let response: any = null;
+    let errorDetails = "";
+    
+    // We'll collect all possible keys to try:
+    // 1. The currently rotated key from Admin Panel
+    // 2. The main system environment variable (GEMINI_API_KEY)
+    // 3. Any other keys available in the database
+    const keysToTry: (string | null)[] = [];
+    
     const rotatedKey = rotateGeminiKey();
-    const aiClient = getAIClient(rotatedKey);
+    if (rotatedKey) {
+      keysToTry.push(rotatedKey);
+    }
+    
+    // Add the main system key
+    if (process.env.GEMINI_API_KEY) {
+      keysToTry.push(process.env.GEMINI_API_KEY);
+    }
+    
+    // Add all other keys from DB to be sure we try everything if one is invalid/exhausted
+    const dbKeys = db.geminiKeys || [];
+    dbKeys.forEach(k => {
+      if (k && !keysToTry.includes(k)) {
+        keysToTry.push(k);
+      }
+    });
+    
+    // Filter out null or placeholders
+    const validKeys = keysToTry.filter(k => k && k !== "MY_GEMINI_API_KEY" && k.trim() !== "") as string[];
+    
+    // If we have absolutely no valid keys (e.g. on Render with no env var set and no keys in admin panel),
+    // let's try with null so getAIClient can throw a clean, helpful error or use whatever default is there
+    if (validKeys.length === 0) {
+      validKeys.push(process.env.GEMINI_API_KEY || "");
+    }
 
     let contents = "";
     if (existingCode) {
@@ -441,15 +474,43 @@ Azafady, ovay ity kaody ity araka ny fangatahana etsy ambony. Avereno ny kaody H
       contents = `Mamorona tranonkala vaovao momba ity lohahevitra ity: ${prompt}`;
     }
 
-    // Call Gemini 2.5 Flash / 3.5 Flash (or equivalent model)
-    const response = await aiClient.models.generateContent({
-      model: "gemini-2.5-flash", // Rotating through keys for gemini-2.5-flash
-      contents: contents,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.7,
-      },
-    });
+    // Try each key one by one until one succeeds
+    for (let i = 0; i < validKeys.length; i++) {
+      const currentKey = validKeys[i];
+      try {
+        const aiClient = getAIClient(currentKey);
+        
+        // Call the official gemini-3.5-flash model as recommended by system instructions
+        response = await aiClient.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: contents,
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION,
+            temperature: 0.7,
+          },
+        });
+        
+        if (response && (response.text || response.candidates)) {
+          // Success! Break the loop
+          break;
+        }
+      } catch (err: any) {
+        console.warn(`Fahadisoana tamin'ny fampiasana API Key faha-${i + 1}:`, err.message);
+        errorDetails = err.message;
+        // Continue to the next key in the list
+      }
+    }
+
+    if (!response) {
+      const isRender = process.env.RENDER === "true";
+      let msg = "Tsy nahomby ny fifandraisana tamin'ny AI satria tsy misy API Key manan-kery (valid).";
+      if (isRender) {
+        msg += " Azafady ampidiro ho 'Environment Variable' mitondra ny anarana 'GEMINI_API_KEY' ao amin'ny Render Dashboard-nao ny fanalahidy, na ampidiro ao amin'ny Admin Panel indray izany.";
+      } else {
+        msg += " Amboary na ampidiro ao amin'ny Admin Panel ny fanalahidy vaovao (Gemini API Key).";
+      }
+      throw new Error(`${msg} (Antsipiriany: ${errorDetails})`);
+    }
 
     const replyText = response.text || "";
 
