@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc, initializeFirestore } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, initializeFirestore, onSnapshot } from "firebase/firestore";
 
 const DB_PATH = path.join(process.cwd(), "data-store.json");
 
@@ -62,6 +62,22 @@ let cachedDb: DbSchema = INITIAL_DB;
 let isFirestoreInitialized = false;
 let firestoreDbInstance: any = null;
 
+// 1. Immediately load local backup copy synchronously so cachedDb is never empty on immediate reads
+try {
+  if (fs.existsSync(DB_PATH)) {
+    const localData = fs.readFileSync(DB_PATH, "utf-8");
+    cachedDb = JSON.parse(localData);
+    console.log(`[Startup] Restored initial database cache from local disk: (${cachedDb.users.length} users, ${cachedDb.geminiKeys.length} Gemini keys, ${cachedDb.payments?.length || 0} payments)`);
+  } else {
+    cachedDb = INITIAL_DB;
+    fs.writeFileSync(DB_PATH, JSON.stringify(INITIAL_DB, null, 2), "utf-8");
+    console.log("[Startup] Initialized new local database with defaults.");
+  }
+} catch (err) {
+  console.error("[Startup] Failed to read local database copy:", err);
+  cachedDb = INITIAL_DB;
+}
+
 // Initialize Firebase client SDK
 function initFirebase() {
   try {
@@ -85,6 +101,30 @@ function initFirebase() {
       }
       isFirestoreInitialized = true;
       console.log("Firebase/Firestore initialized successfully. Database ID:", config.firestoreDatabaseId || "(default)");
+
+      // Set up real-time subscription to always keep local memory in sync across instances
+      const docRef = doc(firestoreDbInstance, "app_state", "v1");
+      onSnapshot(docRef, async (docSnap) => {
+        if (docSnap.exists()) {
+          const cloudData = docSnap.data() as DbSchema;
+          // Validations to ensure it's a correct schema
+          if (Array.isArray(cloudData.users) && Array.isArray(cloudData.geminiKeys)) {
+            cachedDb = cloudData;
+            console.log(`[Firestore Sync] Real-time update loaded! (${cachedDb.users.length} users, ${cachedDb.geminiKeys.length} Gemini keys, ${cachedDb.payments?.length || 0} payments)`);
+            fs.writeFileSync(DB_PATH, JSON.stringify(cachedDb, null, 2), "utf-8");
+          }
+        } else {
+          console.log("[Firestore Sync] Cloud state is empty. Seeding local database to Firestore...");
+          try {
+            await setDoc(docRef, cachedDb);
+          } catch (err) {
+            console.error("[Firestore Sync] Failed to seed initial database to Firestore:", err);
+          }
+        }
+      }, (error) => {
+        console.error("Firestore real-time subscription error:", error);
+      });
+
     } else {
       console.warn("firebase-applet-config.json not found. Running with local disk-based persistence only.");
     }
@@ -95,58 +135,6 @@ function initFirebase() {
 
 // Initialize on module load
 initFirebase();
-
-// Load initial database either from Firestore, local disk, or use default
-async function loadDatabaseAsync() {
-  // 1. Try Firestore if active
-  if (isFirestoreInitialized && firestoreDbInstance) {
-    try {
-      console.log("Attempting to load database from Cloud Firestore...");
-      const docRef = doc(firestoreDbInstance, "app_state", "v1");
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        const cloudData = docSnap.data() as DbSchema;
-        // Basic schema validations
-        if (Array.isArray(cloudData.users) && Array.isArray(cloudData.geminiKeys)) {
-          cachedDb = cloudData;
-          console.log(`Successfully restored database from Firestore! (${cachedDb.users.length} users, ${cachedDb.geminiKeys.length} Gemini keys, ${cachedDb.payments?.length || 0} payments)`);
-          
-          // Also save a local backup copy
-          fs.writeFileSync(DB_PATH, JSON.stringify(cachedDb, null, 2), "utf-8");
-          return;
-        }
-      } else {
-        console.log("Firestore database is empty. Seeding INITIAL_DB to Firestore...");
-        await setDoc(docRef, INITIAL_DB);
-        cachedDb = INITIAL_DB;
-        fs.writeFileSync(DB_PATH, JSON.stringify(cachedDb, null, 2), "utf-8");
-        return;
-      }
-    } catch (err) {
-      console.error("Failed to fetch database from Firestore, falling back to local file:", err);
-    }
-  }
-
-  // 2. Try Local File fallback
-  try {
-    if (fs.existsSync(DB_PATH)) {
-      const localData = fs.readFileSync(DB_PATH, "utf-8");
-      cachedDb = JSON.parse(localData);
-      console.log(`Restored database from local disk. (${cachedDb.users.length} users)`);
-    } else {
-      cachedDb = INITIAL_DB;
-      fs.writeFileSync(DB_PATH, JSON.stringify(INITIAL_DB, null, 2), "utf-8");
-      console.log("Initialized new local database with defaults.");
-    }
-  } catch (err) {
-    console.error("Critical: Failed to read local database copy:", err);
-    cachedDb = INITIAL_DB;
-  }
-}
-
-// Synchronously kick off the asynchronous load on startup
-loadDatabaseAsync();
 
 // Public function: Reads the DB (instantaneous from memory)
 export function readDb(): DbSchema {
